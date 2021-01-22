@@ -70,6 +70,41 @@
 /*  Accuracy with which floats are compared */
 #define MINUNIT_EPSILON 1E-12
 
+#ifdef __cplusplus
+/*  Test Suite Nodes for a linked list of test-suites : Adds dynamic running of all tests that are present (registered by compilation) 
+    such that they can all be run without knowing what is there (and having to adapt a 'main'). 
+	
+	Uses some basic C++ (thats missing in C) and hence is a C++ ONLY feature. 
+*/
+typedef void (*suite_ptr)(void);
+struct node_t {
+	suite_ptr ptr_toSuite;
+	node_t* next;
+	explicit node_t(suite_ptr _suite);
+};
+extern node_t* FIRST;
+extern node_t* LAST;
+
+// C++ify this so that counters and timers work across all translation units.
+/*  Misc. counters */
+extern int minunit_run;
+extern int minunit_assert;
+extern int minunit_fail;
+extern int minunit_status;
+
+/*  Timers */
+extern double minunit_real_timer;
+extern double minunit_proc_timer;
+
+/*  Last message */
+extern char minunit_last_message[MINUNIT_MESSAGE_LEN];
+
+// C++ todo : this is not necessary. A simple struct 'fixture' with constructor/destructor works perfectly.
+/*  Test setup and teardown function pointers */
+static void (*minunit_setup)(void) = NULL;
+static void (*minunit_teardown)(void) = NULL;
+
+#else
 /*  Misc. counters */
 static int minunit_run = 0;
 static int minunit_assert = 0;
@@ -86,14 +121,37 @@ static char minunit_last_message[MINUNIT_MESSAGE_LEN];
 /*  Test setup and teardown function pointers */
 static void (*minunit_setup)(void) = NULL;
 static void (*minunit_teardown)(void) = NULL;
+#endif
 
 /*  Definitions */
 #define MU_TEST(method_name) static void method_name(void)
+#ifdef __cplusplus
+#define MU_TEST_SUITE(suite_name) \
+void suite_name(void); \
+node_t node_##suite_name(&suite_name); \
+static void suite_name(void)
+#else
 #define MU_TEST_SUITE(suite_name) static void suite_name(void)
+#endif
 
 #define MU__SAFE_BLOCK(block) do {\
 	block\
 } while(0)
+
+#ifdef __cplusplus
+/*  Runs all test suites that registered themselves upon compilation.  */
+#define MU_RUN_ALL() MU__SAFE_BLOCK(\
+	node_t* next; \
+	next = FIRST->next; \
+	while(next != NULL) \
+	{\
+		(*next->ptr_toSuite)();\
+		minunit_setup = NULL;\
+		minunit_teardown = NULL;\
+		next = next->next; \
+	}\
+)
+#endif
 
 /*  Run test suite and unset setup and teardown functions */
 #define MU_RUN_SUITE(suite_name) MU__SAFE_BLOCK(\
