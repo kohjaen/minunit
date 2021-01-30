@@ -127,7 +127,7 @@ static void (*minunit_teardown)(void) = NULL;
 #define MU_TEST(method_name) static void method_name(void)
 #ifdef __cplusplus
 #define MU_TEST_SUITE(suite_name) \
-void suite_name(void); \
+static void suite_name(void); \
 node_t node_##suite_name(&suite_name); \
 static void suite_name(void)
 #else
